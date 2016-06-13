@@ -6,9 +6,11 @@ import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.*;
 
-public class FlinkTransaction {
+public class FlinkTransaction implements Serializable {
 
 	public Double dateTime;
 	public Customer customer;
@@ -182,5 +184,19 @@ public class FlinkTransaction {
 		this.dateTime = dateTime;
 	}
 
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.writeObject(this.toString());
+	}
+
+	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+		String jsonString = (String) in.readObject();
+		FlinkTransaction transaction = new FlinkTransaction(jsonString);
+
+		this.customer = transaction.customer;
+		this.dateTime = transaction.dateTime;
+		this.id = transaction.id;
+		this.products = transaction.products;
+		this.store = transaction.store;
+	}
 }
 
