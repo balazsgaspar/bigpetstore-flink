@@ -91,6 +91,20 @@ under the License.
             <version>${spark.version}</version>
         </dependency>
 
+        <!-- Spark MLlib -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_2.10</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+
+        <!-- Spark Streaming -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming_2.10</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+
         <!-- Data generator -->
         <dependency>
             <groupId>com.github.rnowling.bigpetstore</groupId>

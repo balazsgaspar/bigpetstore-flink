@@ -46,27 +46,28 @@ object DataGenerator {
     val customers = for (i <- 1 to numCustomers) yield customerGenerator.generate
 
     // Generate transactions
-    val transactions = sc.parallelize(customers)
-      .mapPartitionsWithIndex{ (index : Int, customers: Iterator[Customer]) =>
-        val seedFactory = new SeedFactory(index)
-        val products = productBroadcast.value
-        val stores = storesBroadcast.value
-        val profile = new PurchasingProfileGenerator(products, seedFactory).generate
+    val generateTransactions = {(index : Int, customers: Iterator[Customer]) =>
+      val seedFactory = new SeedFactory(index)
+      val products = productBroadcast.value
+      val stores = storesBroadcast.value
+      val profile = new PurchasingProfileGenerator(products, seedFactory).generate
 
-        customers.flatMap {
-          case customer =>
-            val transGen = new TransactionGenerator(customer, profile, stores, products, seedFactory)
-            val transactions = new mutable.HashSet[FlinkTransaction]()
-            var transaction = transGen.generate
+      customers.flatMap {
+        case customer =>
+          val transGen = new TransactionGenerator(customer, profile, stores, products, seedFactory)
+          val transactions = new mutable.HashSet[FlinkTransaction]()
+          var transaction = transGen.generate
 
-            while (transaction.getDateTime < simLength) {
-              if (transaction.getDateTime > burningTime) transactions.add(transaction)
-              transaction = transGen.generate
-            }
-            transactions.iterator
-        }
-
+          while (transaction.getDateTime < simLength) {
+            if (transaction.getDateTime > burningTime) transactions.add(transaction)
+            transaction = transGen.generate
+          }
+          transactions.iterator
       }
+    }
+
+    val transactions = sc.parallelize(customers)
+      .mapPartitionsWithIndex(generateTransactions)
       .map{t => t.setDateTime(t.getDateTime + startTime); t}
 
     transactions.saveAsTextFile(output)

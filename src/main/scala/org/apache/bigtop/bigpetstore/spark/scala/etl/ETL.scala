@@ -45,8 +45,9 @@ object ETL {
       .map(res => (res._2._1, res._2._2))
       .distinct
 
-//    customerAndProductIDS.saveAsTextFile(output)
-    customerAndProductIDS.collect.foreach(println)
+    customerAndProductIDS
+      .map(pair => Array(pair._1, pair._2).mkString(","))
+      .saveAsTextFile(output)
 
     //Print stats on the generated dataset
     val numProducts = productsWithIndex.count
@@ -58,57 +59,48 @@ object ETL {
 
     val dataFrame = sqlContext.read.json(input)
 
-    dataFrame.printSchema()
+    dataFrame.registerTempTable("transactions")
 
-    val storeTransactionCount =
+    // Transaction count of stores
+    val storeTransactionsCount = sqlContext.sql("SELECT store.id id, store.name name, COUNT(store.id) count " +
+      "FROM transactions " +
+      "GROUP BY store.id, store.name")
 
-//    val table = transactions.map(toCaseClass(_)).toTable
-//
-//    // Transaction count of stores
-//    val storeTransactionCount = table.groupBy('storeId).select('storeId, 'storeName, 'storeId.count as 'count)
-//
-//    // Store(s) with the most transactions
-//    val bestStores = storeTransactionCount.select('count.max as 'max)
-//      .join(storeTransactionCount)
-//      .where("count = max")
-//      .select('storeId, 'storeName, 'count)
-//      .toDataSet[StoreCount].collect
-//
-//    // Transaction count of months
-//    val monthTransactionCount = table.groupBy('month).select('month, 'month.count as 'count)
-//      .toDataSet[MonthCount].collect
-//
-//    println("Generated bigpetstore stats")
-//    println("---------------------------")
-//    println("Customers:\t" + numCustomers)
-//    println("Stores:\t\t" + numStores)
-//    println("simLength:\t" + simLength)
-//    println("Products:\t" + numProducts)
-//    println("sparse:\t\t" + sparseness)
-//    println()
-//    println("Store(s) with the most transactions")
-//    println("---------------------------")
-//    bestStores.foreach(println(_))
-//    println()
-//    println("Monthly transaction count")
-//    println("---------------------------")
-//    monthTransactionCount.foreach(println(_))
-  }
+    storeTransactionsCount.registerTempTable("storeTransactions")
 
-  // Type utilities for the Table API conversions
-  case class Transaction(month : Int,
-                         customerId : Int, customerName : (String, String),
-                         transactionId : Int,
-                         storeId : Int, storeName : String, storeCity : String,
-                         products : Traversable[String])
+    // Store(s) with the most transactions
+    val bestStores = sqlContext.sql("SELECT st.id, st.name, max.count " +
+      "FROM storeTransactions st, (SELECT MAX(count) as count FROM storeTransactions) max " +
+      "WHERE st.count = max.count")
+      .collect
 
-  case class StoreCount(storeId : Int, storeName : String, count : Int)
-  case class MonthCount(month : Int, count : Int)
+    // Transaction count of months
+    def month = (dateTime : Double) => {
+      val millis = (dateTime * 24 * 3600 * 1000).toLong
+      new Date(millis).getMonth
+    }
 
-  def toCaseClass(t : FlinkTransaction) = {
-    val millis = (t.dateTime * 24 * 3600 * 1000).toLong
-    val month = new Date(millis).getMonth
-    Transaction(month, t.customer.getId, (t.customer.getName.getFirst, t.customer.getName.getFirst),
-      t.id, t.store.getId, t.store.getName, t.store.getLocation.getCity, t.products)
+    sqlContext.udf.register("month", month)
+
+    val monthTransactionCount = sqlContext.sql("SELECT month(dateTime) month, COUNT(month(dateTime)) count " +
+      "FROM transactions " +
+      "GROUP BY month(dateTime)")
+      .collect
+
+    println("Generated bigpetstore stats")
+    println("---------------------------")
+    println("Customers:\t" + numCustomers)
+    println("Stores:\t\t" + numStores)
+    println("simLength:\t" + simLength)
+    println("Products:\t" + numProducts)
+    println("sparse:\t\t" + sparseness)
+    println
+    println("Store(s) with the most transactions")
+    println("---------------------------")
+    bestStores.foreach(println)
+    println
+    println("Monthly transaction count")
+    println("---------------------------")
+    monthTransactionCount.foreach(println)
   }
 }
