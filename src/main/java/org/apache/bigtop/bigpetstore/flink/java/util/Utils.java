@@ -137,10 +137,17 @@ public class Utils {
     }
   }
 
+  static String customerPath;
+  static String productPath;
   static int numOfPartitions;
   static int currentPartition = 0;
   static boolean read = false;
   static List<double[][]> itemMatrix = new ArrayList<>();
+
+  public static void initializeStreamingUtils(ParameterTool params){
+    customerPath = params.getRequired("customerOut");
+    productPath = params.get("productOut");
+  }
 
   public static double[][] getItemMatrix(int k) {
     numOfPartitions = k;
@@ -148,22 +155,25 @@ public class Utils {
       List<double[]> rows = new ArrayList<>();
       BufferedReader br = null;
       try {
-        br = new BufferedReader(new FileReader(
-                "/tmp/flink-product-factors/"));
-        while (true) {
-          String line = br.readLine();
-          String[] nums;
-          if (line == null) {
-            break;
-          } else
-            line = line.replace("(", "").replace(")", "");
+        if (productPath == null){
+          throw new RuntimeException("Call #initializeStreamingUtils prior to usage");
+        } else {
+          br = new BufferedReader(new FileReader(productPath));
+          while (true) {
+            String line = br.readLine();
+            String[] nums;
+            if (line == null) {
+              break;
+            } else
+              line = line.replace("(", "").replace(")", "");
             nums = line.split(",");
             double[] row = new double[nums.length - 1];
             for (int i = 1; i <= row.length; i++) {
               row[i - 1] = Double.parseDouble(nums[i]);
-          }
-          rows.add(row);
+            }
+            rows.add(row);
 
+          }
         }
       } catch (Exception e) {
         e.printStackTrace();

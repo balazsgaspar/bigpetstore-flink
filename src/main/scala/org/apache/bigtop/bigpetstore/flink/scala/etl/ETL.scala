@@ -65,13 +65,13 @@ object ETL {
     val monthTransactionCount = table.groupBy('month).select('month, 'month.count as 'count)
       .toDataSet[MonthCount].collect
 
-    println("Generated bigpetstore stats")
+    println("Generated BigPetStore stats")
     println("---------------------------")
     println("Customers:\t" + numCustomers)
     println("Stores:\t\t" + numStores)
-    println("simLength:\t" + simLength)
+    println("SimLength:\t" + simLength)
     println("Products:\t" + numProducts)
-    println("sparse:\t\t" + sparseness)
+    println("Sparseness:\t\t" + sparseness)
     println()
     println("Store(s) with the most transactions")
     println("---------------------------")
